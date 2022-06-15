@@ -1,0 +1,310 @@
+#+TITLE: Yaks Packages
+
+#+PROPERTY: LOGGING nil
+
+# NOTE: To avoid having this in the info manual, we use HTML rather than Org
+# syntax; it still appears with the GitHub renderer.
+#+HTML: <a href="https://melpa.org/#/yakspkgs"><img src="https://melpa.org/packages/yakspkgs-badge.svg" alt="melpa package"></a> <a href="https://stable.melpa.org/#/yakspkgs"><img src="https://stable.melpa.org/packages/yakspkgs-badge.svg" alt="melpa stable package"></a>
+#+HTML: <a href="https://github.com/positron-solutions/yakspkgs/actions/?workflow=CI"><img src="https://github.com/positron-solutions/yakspkgs/actions/workflows/ci.yml/badge.svg" alt="CI workflow status"></a>
+#+HTML: <a href="https://github.com/positron-solutions/yakspkgs/actions/?workflow=Developer+Certificate+of+Origin"><img src="https://github.com/positron-solutions/yakspkgs/actions/workflows/dco.yml/badge.svg" alt="DCO Check"></a>
+
+* Emacs interactively installing its own 3rd party dependencies
+
+  Emacs can do this:
+
+  #+begin_src shell
+    nix profile install nixpkgs#hello --profile emacs-profile
+
+    export PATH=$PATH:./emacs-profile/bin
+
+    which hello
+    # /home/user/.emacs.d/emacs-profile/bin/hello
+
+    hello
+    Hello, world!
+  #+end_src
+
+  Binaries, reproducible, when you need them.  No need for restarting Emacs or
+  using Nix or Guix commands.  Let Emacs control everything, as the world should
+  be.  Portable across Darwin, WSL2, Linux etc.  Pure-build system agnostic so
+  both Guix and Nix users can play together.  Re-use work in CI & sanbox tests.
+
+  ⚠️ *WARNING* ⚠️
+
+  This package is very incomplete and being rushed out as a proof-of-concept.
+  Too much of the Nix & Guix work out there has adopted a workflow that forces
+  users to restart or run Nix builds just to change Elisp dependencies.  Read
+  the [[#design-vision][Design Vision]] to understand what we should be doing and what this package
+  will be.  Read [[#current-status][Current Status]] to figure out how to where to start working on
+  it.
+  
+* Contents                                                         :noexport:
+:PROPERTIES:
+:TOC:      :include siblings
+:END:
+:CONTENTS:
+- [[#introduction-to-pure-profiles][Introduction to pure profiles]]
+- [[#the-design-vision][The Design Vision]]
+  - [[#interactive-vs-batch][Interactive vs Batch]]
+- [[#install-yakspkgs][Install yakspkgs]]
+- [[#current-status][Current Status]]
+- [[#contributing][Contributing]]
+  - [[#license][License]]
+  - [[#developer-certificate-of-origin-dco][Developer Certificate of Origin (DCO)]]
+    - [[#sign-off][Sign-off]]
+    - [[#gpg-signature][GPG signature]]
+    - [[#user-setup-for-submitting-changes][User setup for submitting changes]]
+      - [[#automatically-add-sign-off][Automatically add sign-off]]
+      - [[#automatic-gpg-signing-with-per-project-keys][Automatic GPG signing with per-project keys]]
+      - [[#manually-signing--adding-sign-off][Manually signing & adding sign-off]]
+- [[#shout-outs][Shout-outs]]
+- [[#footnote-on-fsf-and-emacs-core-licensing][Footnote on FSF and Emacs Core Licensing]]
+:END:
+
+* Introduction to pure profiles
+  
+  Pure dependency management tools (Nix & Guix) have a concept of a [[https://nixos.org/manual/nix/stable/package-management/profiles.html][profile]], a
+  way to present entire sets of programs to an environment.  This package gives
+  Emacs control of its very own profile.  Emacs with a profile can do all of its
+  own 3rd party dependency management without affecting the rest of the user
+  shell.  Freedom.  Independence.  Reproducibility and portability.  This use
+  manner will revolutionize Emacs's relationship with binary packages.
+
+* The Design Vision
+  
+- *Emacs-specific Guix & Nix binaries*
+
+  This is the packages part of yakspkgs.  While nixpkgs and guixpkgs include a
+  [[https://search.nixos.org/packages][lot of packages]], Emacs may need special builds or bleeding edge upstreams, and
+  this repository can provide those packages. Yakspkgs is an especially good
+  place for dynamically loaded modules that are otherwise a major portability
+  headache.
+
+- *Interactive profile*
+
+  The interactive profile can be edited by the user live using Emacs commands to
+  experiment with different binary dependencies from yakspkgs
+
+- *The lock file*
+
+  Record the current state of the interactive profile into a *portable* lock
+  file, using elisp and [[https://github.com/talyz/fromElisp][interpretation]].
+
+- *Frozen profile*
+
+  Re-hydrating the lock file into a profile results in a reproducible profile,
+  aka the frozen profile.  It only changes when the lock file changes.
+
+- *Batch rehydration*
+
+  After a frozen profile is working well enough, the lock file can, instead of
+  being read by Emacs on startup, be used to create an Emacs with all batteries
+  included for CI or sandbox tests.  This is the batch workflow that many people
+  have been focusing.
+
+  Sandboxed tests can be run directly off of a frozen set made from the current
+  interactive set, so you can tune dependencies and quickly identify if you got
+  them all right before committing and pushing the lock file for CI.
+
+- *New elisp package header*
+
+  Elisp packages like emacs-vterm can adopt a new header instructing yakspkgs
+  about what 3rd party dependencies to install into the profile.
+
+- *Elisp package decoration*   
+
+  Not all elisp packages will declare their 3rd party dependencies overnight.
+  It takes time to normalize this and make it as ubiquitous as declaring elisp
+  dependencies.  Package decoration allows elisp package managers to get 3rd
+  party dependencies when yakspkgs moves faster than elisp packages.
+
+** Interactive vs Batch
+
+   *Batch is for CI & sandboxed tests.  Interactive is for development and daily
+   driving.*
+
+   Guix and Nix have been creating lots of solutions to deliver an Emacs with
+   elisp dependencies installed.  It's pure.  It's reproducible, but it is
+   catastrophic to the user experience.  It's find for bootstrapping
+   dependencies, such as installing a package manager, or using in a batch
+   workflow like CI or sandbox tests.
+
+   By pushing the batch workflow to use an elisp lock file, there will be no
+   need for the user to mess with Nix expressions.  Just install Nix and let
+   Emacs do the rest.  This enables us to be language agnostic.  Guix can likely
+   read elisp data structures natively wherever they overlap with Guile Scheme.
+
+   Finally, the interactive workflow will allow package development with
+   dynamics sources that do not require restarts.  This makes Emacs the master
+   of its own binaries at runtime rather than the output of a batch process that
+   must be restarted between batch processes.   
+
+* Install yakspkgs
+
+  #+begin_src elisp
+    (use-package yakspkgs)
+
+    ;; straight-use-package-by-default t and you want a git version
+    (use-package yakspkgs
+      :straight
+      (yakspkgs :type git :host github :repo "positron-solutions/yakspkgs"))
+
+    ;; if straight-use-package-by-default is nil
+    (straight-use-package '(yakspkgs :type git :host github
+                                           :repo "positron-solutions/yakspkgs"))
+
+    ;; or use melpa, manual load-path & require, you brave yak shaver
+  #+end_src
+
+* Current Status
+
+  YOU GET NOTHING.  ONLY THE DESIGN IS DONE.  PROFILES WERE TESTED MANUALLY.
+  CAN'T WAIT FOR THOSE FIRST COMMITS.
+
+* Contributing
+
+First decide if you want to work on this repository or fork it to something
+entirely different.  Non-exhaustive list of changes that are very welcome:
+
+- Guix package declarations
+- Guix translation of elisp package headers
+- Guix elisp package decoration
+- Guix profile generation from lock file
+- Guix commands to interact with Guix daemon
+
+Changes will likely be rejected if it is aimed at:
+
+- Batch style workflows that require the user to restart Emacs except for CI &
+  sandbox cases, which must use a lock file
+
+** License
+
+   The CI files in the project are distributed with the MIT license. For elisp
+   files, Nix expressions, and Guix expressios, only files with GPL3 headers
+   will be accepted.  DCO sign-off is mandatory.
+
+** Developer Certificate of Origin (DCO)
+
+   A [[./DCO][copy of the DCO]] is distributed with this project.  Read its text to
+   understand the significance of configuring for sign-off.
+
+*** Sign-off
+
+    A sign-off means adding a "trailer" to your commit that looks like the
+    following:
+
+    #+begin_src
+    Signed-off-by: Random J Developer <random@developer.example.org>
+    #+end_src
+
+*** GPG signature
+
+    A GPG signed commit shows that the owner of the private key submitted the
+    changes.  Wherever signatures are recorded in chains, they can demonstrate
+    participation in changes elsewhere and awareness of what the submitter is
+    participating in.  While forgeries could still allow plagiarized changes to
+    be submitted, revealing this would cause the submitter to face legal
+    exposure, and so it is unlikely that the authenticity of a forgery will ever
+    be proven by the submitter, even though they have clearly provided the means
+    of incontrovertibly doing so.
+
+*** User setup for submitting changes
+
+    Follow these instructions before you get ready to submit a pull-request.
+
+    Refer to the [[https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits][Github signing commits]] instructions to set up your git client
+    to add GPG signatures.  File issues if you run into Emacs-specific problems.
+
+    Because signing is intended to be a conscious process, please remember to
+    read and understand the [[./DCO][Developer Certificate of Origin]] before confinguring
+    your client to automatically sign-off on commits.
+
+**** Automatically add sign-off
+
+     In magit, set the =-s= switch.  Use =C-x C-s= (=transient-save=) to
+     preserve this switch on future uses.  (Note, this is not per-project).You
+     can also set the signature flag this way.
+
+**** Automatic GPG signing with per-project keys
+    
+    In order to specify which projects you intend to sign with which keys, you
+    will want to configure your git client using path-specific configurations.
+
+    Configuing git for this can be done with the following directory structure:
+
+    #+begin_src
+    /home/rjdeveloper/
+    ├── .gitconfig
+    └── .gitconfig.d
+        ├── sco-linux-projects.conf
+        ├── other-projects.conf
+        └── gpg-signing-projects.conf
+    #+end_src
+
+    In your root config, ~.gitconfig~, add an =includeIf= directive that will
+    load the configuration you use for projects you intend to GPG sign commits
+    for.
+
+    #+begin_src
+    [includeIf "gitdir:/home/rjdeveloper/**/gpg-signing/**/.git"]
+      path = "~/.gitconfig.d/gpg-signing-projects.conf"
+    #+end_src
+
+    In the ~gpg-signing-projects.conf~ add your GPG signing configuration from
+    earlier.  =sign= adds the GPG signature automatically.  File an issue if you
+    need help with multiple GPG homes or other configurations.
+
+    #+begin_src
+    [user]
+      name = "Random J Developer"
+      email = "random@developer.example.org"
+      signingkey = "5FF0EBDC623B3AD4"
+
+    [commit]
+      sign = true
+      gpgSign = true
+    #+end_src
+
+**** Manually signing & adding sign-off
+
+    If you don't like these configurations and want to individually indicate you
+    have read and intend to apply the DCO to your changes, these commands are
+    equivalent:
+
+    #+begin_src bash
+      git commit -s -S --message "I don't like using .gitconfig"
+
+      # To clean up a commit
+      git commit --amend -s -S --no-message
+
+      # Combine with rebase to sign / sign-off multiple existing commits
+      git rebase -i
+    #+end_src
+
+* Shout-outs
+
+- [[https://github.com/alphapapa][alphapapa]] for being super prolific at everything, including package writing,
+  documentation, and activity on various social platforms
+- [[https://github.com/adisbladis][adisbladis]] for the Nix overlay that makes the CI and local development so nice
+- [[https://www.fsf.org/][FSF]] for the Yak shaving club
+- [[https://github.com/NobbZ][NobbZ]] for being all over the Nix & Emacs interwebs
+
+* Footnote on FSF and Emacs Core Licensing
+
+Free Software Foundation currently requires copyright assignment on all code
+that goes into Emacs core. Many GNU projects have since switched to using a
+Developer Certificate of Origin.  DCO sign-off is a practice accepted by git,
+GCC, and the [[https://wiki.linuxfoundation.org/dco][Linux Kernel]].  Doing DCO sign-off is not the same as copyright
+assignment, and serves a slightlly different purpose.  DCO is more defensive of
+/any/ users while copyright assignment is offensive in the case of GPL
+non-compliance. In any case, with DCO sign-off, you can be assured that changes
+submitted to a code base you control are incontrovertibly covered by the license
+you chose.  Using the DCO *may* make it easier for code in your project to be
+included in Emacs core later.
+
+# Local Variables:
+# eval: (require 'org-make-toc)
+# before-save-hook: org-make-toc
+# org-export-with-properties: ()
+# org-export-with-title: t
+# End:
