@@ -20,7 +20,7 @@
 {
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
-    nixpkgs.url = "github:nixos/nixpkgs?ref=release-22.05";
+    nixpkgs.url = "github:nixos/nixpkgs?ref=release-22.11";
     flake-compat = {
       url = "github:edolstra/flake-compat";
       flake = false;
@@ -45,7 +45,7 @@
       let
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [ (import rust-overlay) emacs-overlya.overlay ];
+          overlays = [ (import rust-overlay) emacs-overlay.overlay ];
         };
 
         emacs-vterm = pkgs.stdenv.mkDerivation {
