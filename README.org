@@ -180,6 +180,209 @@
   YOU GET NOTHING.  ONLY THE DESIGN IS DONE.  PROFILES WERE TESTED MANUALLY.
   CAN'T WAIT FOR THOSE FIRST COMMITS.
 
+* Hacking Guide
+  :PROPERTIES:
+  :ID:       9125bc63-03c4-4f8a-8227-d81afad575e0
+  :END:
+
+  This is a short re-index of the information related to providing Emacs with an
+  independent profile, similar to what home manager does.  Links and examples
+  work in Emacs, as literate org content.
+
+  ⚠️ This is work in progress.  Many headlines are just stubs about information
+  we will need eventually. ⚠️
+
+** Environment
+
+   - The regular nix envionment data is carried into to the Emacs process
+     (unless you do something to stop this of course)
+
+   - Nix uses the environment in order to use profiles.  You can list the
+     environment using the =list-environment= package.
+
+   - Inside of vterm, you can run =env=
+
+   - Direnv integration with these concepts is of interest.  We don't want
+     projects to lose our 3rd party deps unless the user explicitly needs this
+     to happen.
+
+** Profiles
+
+   Profiles are versioned sets of packages.  We want to give Emacs a profile.
+   To do a batch style update to a profile, we can use symlinkJoin to create a
+   package that points to other packages and install /that/ into the profile.
+
+*** Creation
+
+   Nix profiles are maintained using the nix binary.  You can create a basic
+   profile manually and "activate" it by just appending the =$PATH=.
+
+  #+begin_src shell
+    nix profile install nixpkgs#hello --profile emacs-profile
+
+    export PATH=$PATH:./emacs-profile/bin
+
+    which hello # /home/user/.emacs.d/emacs-profile/bin/hello
+
+    hello Hello, world!
+  #+end_src
+
+   *Note*, for libraries, such as Emacs modules, you will need to state the path
+   in a nix variable and export that dynamic path to a static path.
+
+   You can also link the dynamic path to a predictable location and use that
+   location from within elisp.  This is done now in Posimacs to expose the
+   vterm.so to Emacs.
+
+   #+begin_quote
+   The file manifest.json records the provenance of the packages that are
+   installed in this version of the profile.
+   #+end_quote
+
+   So where is our new manifest?
+
+   #+begin_src bash
+     cat emacs-profile/manifest.json | jq
+
+     # {
+     #   "elements": [
+     #     {
+     #       "active": true,
+     #       "attrPath": "legacyPackages.x86_64-linux.hello",
+     #       "originalUrl": "flake:nixpkgs",
+     #       "outputs": null,
+     #       "priority": 5,
+     #       "storePaths": [
+     #         "/nix/store/g2m8kfw7kpgpph05v2fxcx4d5an09hl3-hello-2.12.1"
+     #       ],
+     #       "url": "github:NixOS/nixpkgs/a2d2f70b82ada0eadbcb1df2bca32d841a3c1bf1"
+     #     }
+     #   ],
+     #   "version": 1
+     # }
+
+   #+end_src
+
+*** Installing a Declarative Package Set
+
+    We don't want to use the old school (dirty) =nix-env -i= style stuff all the
+    time.  Use flakes.  Be pure.
+
+**** Building a set of profile contents
+
+    We can use =pkgs.symlinkJoin= to bundle together a pile of packages into one
+    super package.  Then, this super-package has all the versioned goodness of
+    the profile.  Thus we can roll back to a previous working declaration if
+    needed.
+
+    An example is in the profile-contents directory.
+
+    [[https://nixos.org/manual/nix/stable/package-management/profiles.html][Beautiful Nix Profile diagrams]].  It is a superposition of outputs basically.
+    If we install this package into the profile, the profile will have a new
+    version, one per each time we update and install our overall declaration.
+
+**** Installation of profile contents into the profile
+
+     Home manager also builds itself as a package.  You can see in the
+     activation script that it executes commands like below:
+
+    #+begin_src bash
+
+      # The docs in the help are good
+      nix profile --help
+      nix profile install /nix/store/yz31iyfqdw4n20l6bpbbxx1y5hrxz4l7-home-manager-path
+
+      # You can see the derivation that outputs this path.  Nix infers
+      # this fact from the /nix directory in the path.
+      nix show-derivation /nix/store/yz31iyfqdw4n20l6bpbbxx1y5hrxz4l7-home-manager-path
+
+    #+end_src
+
+    Look inside the profile-contents directory for a flake.  This flake just
+    provides a super-package including cowsay and hello.  Let's install this
+    super-package into our Emacs profile:
+
+    #+begin_src bash
+
+      nix profile install ./profile-contents#profile-contents --profile emacs-profile
+
+      # If you get a collision, you should remove the hello package or just delete the profile and start over
+      # nix profile remove /nix/store/g2m8kfw7kpgpph05v2fxcx4d5an09hl3-hello-2.12.1 --profile emacs-profile
+
+      # after these get installed, the manifest will be updated.  If the profile is on
+      # the $PATH, you will be able to run cowsay and hello.  No magic, but cool.
+
+      # Note, the structure includes our silly `emacs-god-profile' package name from the flake.nix
+      tree emacs-profile/bin -L 2
+      emacs-profile/bin
+      ├── cowsay -> /nix/store/3d54xbrqj5zixa0cfnyki09jrffr0g3a-cowsay-3.04/bin/cowsay
+      ├── cowthink -> cowsay
+      └── hello -> /nix/store/g2m8kfw7kpgpph05v2fxcx4d5an09hl3-hello-2.12.1/bin/hello
+
+    #+end_src
+
+    So there it is.  You can build a set of packages.  You can attach them to a
+    profile.  You can update them declaratively.  You can make the available on
+    the bin path.  This is almost a POC for giving Emacs an independent profile
+    already.
+
+*** Activation
+
+    Let's reverse-engineer home manager's activation to get some ideas.  If you
+    have home manager installed, after building a completed home manager
+    profile, just take a look at =~/.nixpkgs/config/result/activate=.  It
+    contains a lot of stuff that applies to starting systemd processes.  The
+    path and environment stuff is what we're interested in.
+
+    The "activation" script basically:
+
+    - Check for file symlink collisions on any files we plan to link into place
+    - Check that the profile we are upgrading to is not a downgrade
+    - Link stuff into place and make the profile active
+
+    The money hunk here updates the =PATH=, desktop environment, and systemd
+    state.  It's not very magical.
+
+    #+begin_src bash
+      XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)} \
+          PATH=/nix/store/9fhmhbfkdcarrl1d75h1zbfsnbmwrw57-systemd-250.4/bin:$PATH \
+      bash /nix/store/lyvazadz3v9nck27nwcczqi4s9m402ix-systemd-activate.sh "${oldGenPath=}" "$newGenPath"
+    #+end_src
+
+    Yes, updating the =PATH= is 99% of "activation."  For Emacs to obtain
+    binaries, it's almost 100%.  We only need to reproduce the file linking
+    support for linking libraries into place if elisp scripts expect them to be
+    in a known.  (The slightly longer way is to include the generated paths into
+    the elisp files, basically using nix to finish the elisp files as
+    tempaltes.)
+
+    *Note* it is not recommended to use most elisp files as generated outputs of Nix
+    because they are immutable.  We want to be able to modify our elisp without
+    running a bunch of (sometimes costly) nix builds.
+
+    We can reverse-engineer the symlink system and even perform "activation"
+    using elisp instead of yucky bash or less common (to Emacs users) Nix lang.
+
+** Packages
+
+   We are gluing nix packages onto Emacs packages.  Either the package asks for
+   it or we provide the package when we see its dependent.
+
+   Emacs packages have package headers.  They can contain 3rd party dependency
+   declaration or we can provide a map.  We can consume header information or we
+   can decorate those packages with information they don't know yet.
+
+** Systemd and the Emacs Daemon
+
+   If you want Emacs to run when the DE starts, home manager has this
+   integration ready to go with its Emacs module.
+
+   If we try to drive this stuff from within Emacs' own profile, it may
+   introduce some bootstrap issues with low value, so that's not a goal right
+   now.
+
+   There's an analog for Darwin.  (Sorry WSL2).
+
 * Contributing
 
 First decide if you want to work on this repository or fork it to something
