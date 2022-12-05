@@ -1,6 +1,5 @@
 #+TITLE: Yaks Packages
 
-#+PROPERTY: LOGGING nil
 
 # NOTE: To avoid having this in the info manual, we use HTML rather than Org
 # syntax; it still appears with the GitHub renderer.
@@ -31,119 +30,133 @@
 
   ⚠️ *WARNING* ⚠️
 
-  This package is very incomplete and being rushed out as a proof-of-concept.
+  This package is very incomplete and this repo is being rushed out as a
+  proof-of-concept.
+
   Too much of the Nix & Guix work out there has adopted a workflow that forces
   users to restart or run Nix builds just to change Elisp dependencies.  Read
   the [[#design-vision][Design Vision]] to understand what we should be doing and what this package
   will be.  Read [[#current-status][Current Status]] to figure out how to where to start working on
   it.
-  
+
 * Contents                                                         :noexport:
 :PROPERTIES:
 :TOC:      :include siblings
 :END:
 :CONTENTS:
-- [[#introduction-to-pure-profiles][Introduction to pure profiles]]
-- [[#the-design-vision][The Design Vision]]
-  - [[#interactive-vs-batch][Interactive vs Batch]]
-- [[#install-yakspkgs][Install yakspkgs]]
-- [[#current-status][Current Status]]
-- [[#contributing][Contributing]]
-  - [[#license][License]]
-  - [[#developer-certificate-of-origin-dco][Developer Certificate of Origin (DCO)]]
-    - [[#sign-off][Sign-off]]
-    - [[#gpg-signature][GPG signature]]
-    - [[#user-setup-for-submitting-changes][User setup for submitting changes]]
-      - [[#automatically-add-sign-off][Automatically add sign-off]]
-      - [[#automatic-gpg-signing-with-per-project-keys][Automatic GPG signing with per-project keys]]
-      - [[#manually-signing--adding-sign-off][Manually signing & adding sign-off]]
-- [[#shout-outs][Shout-outs]]
-- [[#footnote-on-fsf-and-emacs-core-licensing][Footnote on FSF and Emacs Core Licensing]]
+- [[Contents][Contents]]
+- [[Introduction to pure profiles][Introduction to pure profiles]]
+- [[The Design Vision][The Design Vision]]
+  - [[Implementation points][Implementation points]]
+  - [[Interactive profile][Interactive profile]]
+    - [[Lock file][Lock file]]
+  - [[Declarative Profile][Declarative Profile]]
+  - [[Adding dependencies to Elisp packages][Adding dependencies to Elisp packages]]
+    - [[New Elisp Package Headers][New Elisp Package Headers]]
+    - [[Elisp Package Decoration][Elisp Package Decoration]]
+- [[Install yakspkgs][Install yakspkgs]]
+- [[Current Status][Current Status]]
+- [[Hacking Guide][Hacking Guide]]
+  - [[Environment][Environment]]
+  - [[Profiles][Profiles]]
+    - [[Creation][Creation]]
+    - [[Installing a Declarative Package Set][Installing a Declarative Package Set]]
+      - [[Building a set of profile contents][Building a set of profile contents]]
+      - [[Installation of profile contents into the profile][Installation of profile contents into the profile]]
+    - [[Activation][Activation]]
+  - [[Packages][Packages]]
+  - [[Systemd and the Emacs Daemon][Systemd and the Emacs Daemon]]
+- [[Contributing][Contributing]]
+  - [[License][License]]
+  - [[Developer Certificate of Origin (DCO)][Developer Certificate of Origin (DCO)]]
+    - [[Sign-off][Sign-off]]
+    - [[GPG signature][GPG signature]]
+    - [[User setup for submitting changes][User setup for submitting changes]]
+      - [[Automatically add sign-off][Automatically add sign-off]]
+      - [[Automatic GPG signing with per-project keys][Automatic GPG signing with per-project keys]]
+      - [[Manually signing & adding sign-off][Manually signing & adding sign-off]]
+- [[Shout-outs][Shout-outs]]
+- [[Footnote on FSF and Emacs Core Licensing][Footnote on FSF and Emacs Core Licensing]]
 :END:
 
 * Introduction to pure profiles
-  
+
   Pure dependency management tools (Nix & Guix) have a concept of a [[https://nixos.org/manual/nix/stable/package-management/profiles.html][profile]], a
-  way to present entire sets of programs to an environment.  This package gives
-  Emacs control of its very own profile.  Emacs with a profile can do all of its
-  own 3rd party dependency management without affecting the rest of the user
-  shell.  Freedom.  Independence.  Reproducibility and portability.  This use
-  manner will revolutionize Emacs's relationship with binary packages.
+  way to present entire sets of programs and their dependencies an environment.
+  This package gives Emacs control of its very own profile.  Emacs with a
+  profile can do all of its own 3rd party dependency management without
+  affecting the rest of the user shell.  Freedom.  Independence.
+  Reproducibility and portability.  This use manner will revolutionize Emacs's
+  relationship with binary packages.
 
 * The Design Vision
-  
-- *Emacs-specific Guix & Nix binaries*
 
-  This is the packages part of yakspkgs.  While nixpkgs and guixpkgs include a
-  [[https://search.nixos.org/packages][lot of packages]], Emacs may need special builds or bleeding edge upstreams, and
-  this repository can provide those packages. Yakspkgs is an especially good
-  place for dynamically loaded modules that are otherwise a major portability
-  headache.
+  Emacs should be it's own package manager for 3rd party packages, using Nix /
+  Guix as backends.  Emacs should be in the driver seat.  No restarts necessary.
 
-- *Interactive profile*
+  While nixpkgs and guixpkgs include a [[https://search.nixos.org/packages][lot of packages]], Emacs may need special
+  builds or bleeding edge upstreams, and this repository can provide those
+  packages. Yakspkgs is an especially good place for dynamically loaded modules
+  that are otherwise a major portability headache.
 
-  The interactive profile can be edited by the user live using Emacs commands to
-  experiment with different binary dependencies from yakspkgs
+** Implementation points
 
-- *The lock file*
+  - Infrastructure for using Nix & Guix profiles from within Emacs
+  - Packages tuned for Emacs whenever package upstreams need some help
+  - Live or fully declarative profile management
+  - Integration infrastructure for elisp to predictably consume 3rd party deps
+    from profiles
+  - Home manager integration driven from within Emacs
+  - Lots of packaging examples for people to provide their binaries without
+    requiring hosting
 
-  Record the current state of the interactive profile into a *portable* lock
-  file, using elisp, consumed in Emacs or through [[https://github.com/talyz/fromElisp][interpretation]] in batch
-  workflows.
+  *Note* ⚠️ Current development is favoring the declarative profile style.  This
+  is covered in the [[Hacking Guide][Hacking Guide]] section. ⚠️
 
-- *Frozen profile*
+** Interactive profile
 
-  Re-hydrating the lock file into a profile results in a reproducible profile,
-  aka the frozen profile.  It only changes when the lock file changes.
+   The interactive profile can be edited by the user live using Emacs commands to
+   experiment with different binary dependencies from yakspkgs
 
-- *Batch rehydration*
+*** Lock file
 
-  After a frozen profile is working well enough, the lock file can, instead of
-  being read by Emacs on startup, be used to create an Emacs with all batteries
-  included for CI or sandbox tests.  This is the batch workflow that many people
-  have been focusing.
+    Record the current state of the interactive profile into a *portable* lock
+    file, using elisp, consumed in Emacs or through [[https://github.com/talyz/fromElisp][interpretation]] in batch
+    workflows.
 
-  Sandboxed tests can be run directly off of a frozen set made from the current
-  interactive set, so you can tune dependencies and quickly identify if you got
-  them all right before committing and pushing the lock file for CI.
+    Re-hydrating the lock file into a profile results in a reproducible profile.
+    It only changes when the lock file changes.
 
-- *New elisp package header*
+** Declarative Profile
 
-  Elisp packages like emacs-vterm can adopt a new header instructing yakspkgs
-  about what 3rd party dependencies to install into the profile.
+  After a frozen interactive profile is working well enough, a declarative
+  profile can be created for human-maintained fully reproducible 3rd party
+  dependency sets.
 
-- *Elisp package decoration*   
+** Adding dependencies to Elisp packages
 
-  Not all elisp packages will declare their 3rd party dependencies overnight.
-  It takes time to normalize this and make it as ubiquitous as declaring elisp
-  dependencies.  Package decoration allows elisp package managers to get 3rd
-  party dependencies when yakspkgs moves faster than elisp packages.
+   Either we say what elisp packages depend on or elisp packges tell us what
+   they depend on.  Both workflows will be needed during adoption.
 
-** Interactive vs Batch
+*** New Elisp Package Headers
 
-   *Batch is for CI & sandboxed tests.  Interactive is for development and daily
-   driving.*
+    Elisp packages like emacs-vterm can adopt a new header instructing yakspkgs
+    about what 3rd party dependencies to install into the profile.
 
-   Guix and Nix have been creating lots of solutions to deliver an Emacs with
-   elisp dependencies installed.  It's pure.  It's reproducible, but it is
-   catastrophic to the user experience.  It's find for bootstrapping
-   dependencies, such as installing a package manager, or using in a batch
-   workflow like CI or sandbox tests.
+*** Elisp Package Decoration
 
-   By pushing the batch workflow to use an elisp lock file, there will be no
-   need for the user to mess with Nix expressions.  Just install Nix and let
-   Emacs do the rest.  This enables us to be language agnostic.  Guix can likely
-   read elisp data structures natively wherever they overlap with Guile Scheme.
+    Not all elisp packages will declare their 3rd party dependencies overnight.
+    It takes time to normalize this and make it as ubiquitous as declaring elisp
+    dependencies.  Package decoration allows elisp package managers to get 3rd
+    party dependencies when yakspkgs moves faster than elisp packages.
 
-   Finally, the interactive workflow will allow package development with
-   dynamics sources that do not require restarts.  This makes Emacs the master
-   of its own binaries at runtime rather than the output of a batch process that
-   must be restarted between batch processes.   
 
 * Install yakspkgs
 
+   ⚠️ Stub for elisp modules after POC implementation.  Won't run yet. ⚠️
+
   #+begin_src elisp
-    (use-package yakspkgs)
+
 
     ;; straight-use-package-by-default t and you want a git version
     (use-package yakspkgs
@@ -154,7 +167,12 @@
     (straight-use-package '(yakspkgs :type git :host github
                                            :repo "positron-solutions/yakspkgs"))
 
-    ;; or use melpa, manual load-path & require, you brave yak shaver
+    ;; using elpaca (recommended to add a hash for reproducibility)
+    (elpaca-use-package
+     (example :host github
+              :repo "positron-solutions/yaskpkgs")
+     :demand t)
+
   #+end_src
 
 * Current Status
@@ -203,11 +221,9 @@ Changes will likely be rejected if it is aimed at:
     A GPG signed commit shows that the owner of the private key submitted the
     changes.  Wherever signatures are recorded in chains, they can demonstrate
     participation in changes elsewhere and awareness of what the submitter is
-    participating in.  While forgeries could still allow plagiarized changes to
-    be submitted, revealing this would cause the submitter to face legal
-    exposure, and so it is unlikely that the authenticity of a forgery will ever
-    be proven by the submitter, even though they have clearly provided the means
-    of incontrovertibly doing so.
+    participating in.  The lack of such a proof elsewhere and the presence of a
+    verifiable proof in this repo's history prevent improper claims of
+    originating source code or introducing relabelled source code.
 
 *** User setup for submitting changes
 
@@ -227,7 +243,7 @@ Changes will likely be rejected if it is aimed at:
      can also set the signature flag this way.
 
 **** Automatic GPG signing with per-project keys
-    
+
     In order to specify which projects you intend to sign with which keys, you
     will want to configure your git client using path-specific configurations.
 
@@ -282,6 +298,7 @@ Changes will likely be rejected if it is aimed at:
       git rebase -i
     #+end_src
 
+
 * Shout-outs
 
 - [[https://github.com/alphapapa][alphapapa]] for being super prolific at everything, including package writing,
@@ -304,8 +321,8 @@ you chose.  Using the DCO *may* make it easier for code in your project to be
 included in Emacs core later.
 
 # Local Variables:
-# eval: (require 'org-make-toc)
-# before-save-hook: org-make-toc
+# before-save-hook: (when (require 'org-make-toc nil t) (org-make-toc))
 # org-export-with-properties: ()
 # org-export-with-title: t
+# org-make-toc-link-type-fn: org-make-toc--link-entry-github
 # End:
