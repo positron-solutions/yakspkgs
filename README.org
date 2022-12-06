@@ -1,6 +1,5 @@
 #+TITLE: Yaks Packages
 
-
 # NOTE: To avoid having this in the info manual, we use HTML rather than Org
 # syntax; it still appears with the GitHub renderer.
 #+HTML: <a href="https://melpa.org/#/yakspkgs"><img src="https://melpa.org/packages/yakspkgs-badge.svg" alt="melpa package"></a> <a href="https://stable.melpa.org/#/yakspkgs"><img src="https://stable.melpa.org/packages/yakspkgs-badge.svg" alt="melpa stable package"></a>
@@ -290,6 +289,21 @@
      # }
 
    #+end_src
+
+*** Flake Registries
+
+    [[https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-registry.html][Flake registries]] contain flakes, which are used when we specify packages
+    using shorthand paths such as nixpkgs#hello.
+
+    Registry support is kind of a replacement for the older nix channel
+    configuration style.
+
+    Yakspkgs will need registry suport to make it easy to switch between
+    different package sets for dynamic profile usage.
+
+    For the declarative style, we usually specify nixpkgs as an input and pin it
+    using the flake lock.  There is no question what version of nixpkgs is in
+    use.
 
 *** Installing a Declarative Package Set
 
