@@ -179,8 +179,25 @@
 
 * Current Status
 
-  YOU GET NOTHING.  ONLY THE DESIGN IS DONE.  PROFILES WERE TESTED MANUALLY.
-  CAN'T WAIT FOR THOSE FIRST COMMITS.
+  An initial package is being created to demonstrate all the necessary
+  capabilities and figure out what the user interface should be.
+
+  There's a lot to get on top of.  To start, a profile is being created inside
+  the user Emacs directory, possibly using no-littering conventions.  The
+  initialization will verify the sanity of the package manager (nix) and install
+  a dummy package that will cause a manifest to be created so that the other
+  commands will provide feedback.
+
+  Dynamic profile management is pretty easy.  Any nix flake style package path
+  is easy to install and they can be listed and uninstalled.  This will complete
+  the very basic POC.
+
+  After that, some more planning is needed.  We can create package sets.  We can
+  generate Nix expressions from elisp.  We can install them and continue
+  supporting more of the Nix profile API.
+
+  The best user experience and utility for hard to do things is going to drive
+  most decisions.
 
 * Hacking Guide
   :PROPERTIES:
