@@ -196,17 +196,26 @@
 
 ** Environment
 
-   - The regular nix envionment data is carried into to the Emacs process
+   - The regular envionment data for nix is carried into to the Emacs process
      (unless you do something to stop this of course)
 
-   - Nix uses the environment in order to use profiles.  You can list the
-     environment using the =list-environment= package.
+   - You can list the environment using the =list-environment= package.
 
-   - Inside of vterm, you can run =env=
+   - Emacs does not by default use buffer local environments.  The envrc package
+     by Steve Purcell is very useful for buffer-local style direnv integration.
 
-   - Direnv integration with these concepts is of interest.  We don't want
-     projects to lose our 3rd party deps unless the user explicitly needs this
-     to happen.
+     This does mean that =process-variable= will change for buffers that have
+     activated a direnv.  The errata caused by functions using a temp buffer
+     without propagating the environment are not that hard to clean up.
+
+   - Inside of vterm, you can run =env=.  The environment inherits
+     =process-variable= but the two are decoupled after this inheritance, so
+     updating the Emacs global profile variables will not change the local
+     variables.
+
+   - Modifying the =PATH= in =process-variable= has the desired effect so that
+     =shell-command= and other functions correctly discover binaries within the
+     nix profile.
 
 ** Profiles
 
