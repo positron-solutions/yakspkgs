@@ -12,6 +12,7 @@
   Emacs can do this:
 
   #+begin_src shell
+
     nix profile install nixpkgs#hello --profile emacs-profile
 
     export PATH=$PATH:./emacs-profile/bin
@@ -20,7 +21,8 @@
     # /home/user/.emacs.d/emacs-profile/bin/hello
 
     hello
-    Hello, world!
+    # Hello, world!
+
   #+end_src
 
   Binaries, reproducible, when you need them.  No need for restarting Emacs or
