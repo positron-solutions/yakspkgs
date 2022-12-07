@@ -84,15 +84,10 @@
 (defun yakspkgs-install (path)
   "Install PATH into profile using the package manager."
   (interactive)
-  (start-process
-   "nix-install"                   ; process name
-   yakspkgs-nix-output-buffer-name ; output buffer
-   "nix"                           ; program
-   "profile"                       ; args
-   "install"
-   path
-   "--profile"
-   yakspkgs-nix-profile-dir))
+  (start-process "nix profile install" yakspkgs-nix-output-buffer-name
+                 "nix" "profile" "install"
+                 path
+                 "--profile" yakspkgs-nix-profile-dir))
 
 ;;;###autoload
 (defun yakspkgs-initialize ()
