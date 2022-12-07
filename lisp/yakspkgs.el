@@ -112,14 +112,24 @@
     (pop-to-buffer yakspkgs-nix-output-buffer-name)))
 
 ;;;###autoload
-(defun yakspkgs-uninstall ()
-  "Remove PATH from profile using the package manager."
-  (interactive)
-  (message "Not done yet.")
-  ;; list packages
-  ;; do a completion
-  ;; call an uninstall command on selected result
-  )
+(defun yakspkgs-uninstall (path)
+  "Remove PATH from profile using the package manager.
+PATH is a string path to the package manager store or an index.
+It needs to be consumable an argument to an uninstall command.
+When called interactively, the package manager is polled for a
+list of installed packages for completion."
+  (interactive
+   ;; first nil is no predicate.  This could be improved with a check function.
+   ;; second nil is don't require match since other kinds of input are valid.
+   (let* ((pkgs-alist (yakspkgs-installed-packages))
+          (selected (completing-read "package path or index: " pkgs-alist nil nil)))
+     (list (cdr (assoc-string selected pkgs-alist)))))
+
+  (message "path: %s" path)
+  (start-process "nix profile remove" yakspkgs-nix-output-buffer-name
+                 "nix" "profile" "remove"
+                 path
+                 "--profile" yakspkgs-nix-profile-dir))
 
 (provide 'yakspkgs)
 ;;; yakspkgs.el ends here.
