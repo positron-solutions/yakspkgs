@@ -69,6 +69,17 @@
 (defconst yakspkgs--min-nix-version "2.8.0"
   "The API since 2.8.0 contains most recent changes.")
 
+(defun yakspkgs-installed-packages ()
+  "Return a list of installed packages."
+  (let* ((pkgsraw (shell-command-to-string
+                   (format "nix profile list --profile %s" yakspkgs-nix-profile-dir))))
+    (->> (string-lines (string-chop-newline pkgsraw))
+         (--map
+          (let* ((parts (split-string it))
+                 (index (elt parts 0))
+                 (flake-path (elt parts 1)))
+            (cons flake-path index))))))
+
 ;;;###autoload
 (defun yakspkgs-install (path)
   "Install PATH into profile using the package manager."
