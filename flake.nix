@@ -31,8 +31,7 @@
     # sources for output packages
     rust-overlay.url = "github:oxalica/rust-overlay";
     emacs-vterm-src = {
-      url =
-        "github:akermu/emacs-libvterm?rev=3155a477b43c1567d754768f5be79296440ebaf8";
+      url = "github:akermu/emacs-libvterm";
       flake = false;
     };
   };
