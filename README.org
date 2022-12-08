@@ -292,11 +292,14 @@
 
 *** Flake Registries
 
-    [[https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-registry.html][Flake registries]] contain flakes, which are used when we specify packages
-    using shorthand paths such as nixpkgs#hello.
+    [[https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-registry.html][Flake registries]] contain flakes mappings between a short name and a full
+    path, which are used when we specify packages using shorthand paths such as
+    nixpkgs#hello.
 
     Registry support is kind of a replacement for the older nix channel
-    configuration style.
+    configuration style.  However, installing packages in thi way is still a bit
+    unspecific.  In order to rehydrate such a path, we need the expanded URL.
+    Pinning a flake is an option.
 
     Yakspkgs will need registry suport to make it easy to switch between
     different package sets for dynamic profile usage.
@@ -304,6 +307,46 @@
     For the declarative style, we usually specify nixpkgs as an input and pin it
     using the flake lock.  There is no question what version of nixpkgs is in
     use.
+
+   We can use a custom registry specific to Emacs with the =--registry= or
+   =--option= flag on most commands. This could be maintained in the
+   =yakspkgs-profile-dir=.  It's just a *registry.json* file.
+
+    #+begin_src bash
+
+      # Specifying a registry to nix search
+      nix search --option flake-registry "file://$(pwd)/registry.json" nixpkgs hello
+
+      # Specifying a registry in nix add
+      nix registry add --registry ./custom-flake-registry.json nixpkgs github:nixos/nixpkgs
+
+    #+end_src
+
+   The registry is obviously convenient for times when the user approximately
+   knows the package name and doesn't really care which nixpkgs version the
+   package is from, usually because the tool is very stable across versions.
+
+   We can offer similar shortcuts in Emacs, using completions across flake
+   attributes from a frozen flake in the registry.
+
+   The profile manifest, stored in manifest.json, can also be used to uniquely
+   describe package sources.
+
+   Versioned flakes and packages very nearly approximate the same information as
+   a declaraed package set.
+
+*** Search
+
+    Registries are somewhat related to search in that they specify flakes from
+    which we might install other packages.  In the case of something like
+    nixpkgs, the user probably wants to search without having to declare nixpkgs
+    as a flake input only to re-export the packages for local completions.  The
+    search interface is good for this.
+
+    Searching the flakes in the registry is also valuable becuase flakes that
+    are added to a regsitry are added essentially to provide convenient access.
+
+
 
 *** Installing a Declarative Package Set
 
