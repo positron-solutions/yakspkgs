@@ -54,8 +54,7 @@
           buildInputs = with pkgs; [ glib.out libvterm-neovim ];
           installPhase = ''
             mkdir -p $out
-            cp ../vterm-module.so $out
-            cp ../vterm.el $out
+            cp ../vterm-module.so "''${out}/lib"
           '';
         };
 
