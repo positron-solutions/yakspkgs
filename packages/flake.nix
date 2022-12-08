@@ -18,6 +18,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 {
+  description = "3rd party dependencies packaged specifically for development with Emacs.";
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "github:nixos/nixpkgs?ref=release-22.11";
@@ -25,7 +26,6 @@
       url = "github:edolstra/flake-compat";
       flake = false;
     };
-    emacs-overlay.url = "github:nix-community/emacs-overlay";
 
     # sources for output packages
     rust-overlay.url = "github:oxalica/rust-overlay";
@@ -36,13 +36,10 @@
   };
 
   outputs = inputs: with inputs;
-
     flake-utils.lib.eachDefaultSystem (system:
-
       let
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [ (import rust-overlay) emacs-overlay.overlay ];
         };
 
         emacs-vterm = pkgs.stdenv.mkDerivation {
@@ -56,40 +53,18 @@
           '';
         };
 
-        rust = pkgs.rust-bin.stable.latest.default.override {
-          extensions = [ "rust-src" "rustfmt" ];
+        pkgsWithRust =  import nixpkgs {
+          inherit system;
+          overlays = [ (import rust-overlay) ];
         };
 
-        # let's have a development shell per Emacs!
-        devShells = pkgs.lib.genAttrs emacsPackages (emacsPkg:
-          pkgs.mkShell {
-            packages = [
-              # https://github.com/nix-community/emacs-overlay
-              # The emacs overlay provides up-to-date snapshots of Melpa packages.
-              # These will be pure & pinned, so you need to update the flake lock
-              # or use appropriate options.
-
-              ((pkgs.emacsPackagesFor pkgs.${emacsPkg}).emacsWithPackages
-                (epkgs:
-                  [
-                    # List test and bootstrap dependencies here:
-                    # epkgs.melpaStablePackages.dash
-                    # epkgs.elpaPackages.dash
-                    # epkgs.dash
-
-                  ]))
-            ];
-          });
+        rust = pkgsWithRust.rust-bin.stable.latest.default.override {
+          extensions = [ "rust-src" "rustfmt" ];
+        };
 
       in rec { # The output set
         packages = {
           inherit emacs-vterm rust;
-          inherit (pkgs) grep ripgrep git;
         };
-
-        # Augment the devShells with a default so that `nix develop` knows what
-        # to do.  Run `nix flake show` to see the results.  Per-system,
-        # per-Emacs, we have a development environment avaialble.
-        devShells = devShells // { default = devShells.emacsNativeComp; };
       });
 }
