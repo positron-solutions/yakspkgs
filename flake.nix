@@ -25,7 +25,6 @@
       url = "github:edolstra/flake-compat";
       flake = false;
     };
-
     emacs-overlay.url = "github:nix-community/emacs-overlay";
 
     # sources for output packages
@@ -36,8 +35,7 @@
     };
   };
 
-  outputs = inputs:
-    with inputs;
+  outputs = inputs: with inputs;
 
     flake-utils.lib.eachDefaultSystem (system:
 
@@ -75,7 +73,6 @@
                 (epkgs:
                   [
                     # List test and bootstrap dependencies here:
-
                     # epkgs.melpaStablePackages.dash
                     # epkgs.elpaPackages.dash
                     # epkgs.dash
