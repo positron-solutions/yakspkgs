@@ -38,8 +38,10 @@
   outputs = inputs: with inputs;
     flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = import nixpkgs {
+
+        pkgs =  import nixpkgs {
           inherit system;
+          overlays = [ (import rust-overlay) ];
         };
 
         emacs-vterm = pkgs.stdenv.mkDerivation {
@@ -53,12 +55,7 @@
           '';
         };
 
-        pkgsWithRust =  import nixpkgs {
-          inherit system;
-          overlays = [ (import rust-overlay) ];
-        };
-
-        rust = pkgsWithRust.rust-bin.stable.latest.default.override {
+        rust = pkgs.rust-bin.stable.latest.default.override {
           extensions = [ "rust-src" "rustfmt" ];
         };
 
