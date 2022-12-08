@@ -1,0 +1,77 @@
+#+TITLE: Packages
+
+This directory contains definitions for packaging dependencies specific to
+Emacs.  Most of these should be upstreamed to repositories like Nixpkgs.  This
+repository can be used when upstreams are slow, as sometimes happens due to lack
+of PR bandwidth.
+
+* Contents
+:PROPERTIES:
+:TOC:      :include siblings
+:END:
+:CONTENTS:
+- [[#contents][Contents]]
+- [[#nix][Nix]]
+  - [[#dynamic-package-management][Dynamic Package Management]]
+  - [[#declarative-package-management][Declarative Package Management]]
+- [[#guix][Guix]]
+:END:
+
+* Nix
+
+  The flake.nix and flake.lock uniquely describe how to build the contained
+  packages.
+
+  It's anticipated that packages will update more frequently than yakspkgs.el.
+  Therefore, instead of reading the flake that might ship with your yakspkgs.el,
+  the default is to point to the flake in this repository.
+
+  There are two ways to set and maintain versions, dynamically and
+  declaratively.
+
+** Dynamic Package Management
+
+   The default is to make this flake available to nix commands via the registry,
+   using *registry.json*, stored in =yakspkgs-profile-dir=. With the registry
+   configured, package paths such as =yakspkgs#vterm= will point to the vterm
+   used in this flake.
+
+   Each package installed into the profile has enough information in the
+   profile's *manifest.json* to generate a fully decided flake.lock file for
+   declarative management.  Use yakgspkgs commands to move packages from dynamic
+   to declarative management.
+
+   The version of the flake used for providing packages via shorthand paths can
+   be updated or pinned.  When this is done, it may be intended to upgrade
+   packages in the profile.  *Note*, this is not fully developed yet.  See nix
+   registry commands.
+
+   This should all configured by =yakspkgs-initialize=.  It should all work out
+   of the box.
+
+** Declarative Package Management
+
+   A lockfile, *packages.el* is created inside =yakspkgs-profile-dir=.
+
+   Within the implementation, adding a package to the declaration rebuilds the
+   declaration and installs it into the profile.  Because the declarative
+   package set already merges multiple packages, there is never a need to have
+   more than one declared package set.
+
+   The *package.el* is used to create a *flake.nix* within the
+   =yakspkgs-profile-dir= and this is what gets installed into the profile.
+
+   *Note*, it's not totally decided yet, but since each Nix profile has some
+   rollback support, perhaps it is best to lean upon the nix profile to decide
+   and maintain the current version of *packages.el*.
+
+* Guix
+
+  Contributors welcome!
+
+# Local Variables:
+# before-save-hook: (when (require 'org-make-toc nil t) (org-make-toc))
+# org-export-with-properties: ()
+# org-export-with-title: t
+# org-make-toc-link-type-fn: org-make-toc--link-entry-github
+# End:
