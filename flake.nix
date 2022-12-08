@@ -77,7 +77,6 @@
                     # epkgs.elpaPackages.dash
                     # epkgs.dash
 
-                    epkgs.melpaPackages.elisp-lint
                   ]))
             ];
           });
